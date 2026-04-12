@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#28282B</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="card_default">#F8F6FC</color>   <!-- very light lavender/grey -->
+    <color name="highlight">#E0B0FF</color>      <!-- your highlight -->
+    <color name="text_primary">#4A4A4A</color>   <!-- black -->
+    <color name="text_primary1">#FFFFFF</color>      <!-- Pure white -->
+    <color name="text_secondary">#B0B0B0</color>    <!-- Light grey -->
+    <color name="text_hint">#808080</color>         <!-- Dim text -->
+</resources>

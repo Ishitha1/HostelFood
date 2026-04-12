@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#F8F9FA">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Update Meal Time"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp"
+        android:textColor="@color/black"/>
+
+    <EditText
+        android:id="@+id/etUpdateStart"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Start Time (HH:mm)"
+        android:inputType="text"
+        android:layout_marginBottom="10dp"
+        android:textColor="@color/black"/>
+
+    <EditText
+        android:id="@+id/etUpdateEnd"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="End Time (HH:mm)"
+        android:inputType="text"
+        android:layout_marginBottom="16dp"
+        android:textColor="@color/black"/>
+
+    <Button
+        android:id="@+id/btnSaveUpdate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Update Time" />
+
+    <Button
+        android:id="@+id/btnCancelUpdate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Cancel"
+        android:backgroundTint="#757575"
+        android:layout_marginTop="8dp"/>
+
+</LinearLayout>

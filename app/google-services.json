@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "651508168042",
+    "project_id": "hostelfood-2c065",
+    "storage_bucket": "hostelfood-2c065.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:651508168042:android:38126e3ec0f788e239a113",
+        "android_client_info": {
+          "package_name": "com.example.hostelfood"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBylc1QAryLmWjDgrLVEL2i2HBWdjvAApU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
