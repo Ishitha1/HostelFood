@@ -20,6 +20,9 @@ import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import com.itextpdf.text.*
+import com.itextpdf.text.pdf.*
+import com.itextpdf.text.pdf.draw.LineSeparator
 
 class AnalyticsFragment : Fragment() {
 
@@ -29,6 +32,10 @@ class AnalyticsFragment : Fragment() {
 
     private var fromDate: Date? = null
     private var toDate: Date? = null
+    val dayFont = Font(Font.FontFamily.HELVETICA, 16f, Font.BOLD, BaseColor(33, 150, 243)) // blue
+    val mealFont = Font(Font.FontFamily.HELVETICA, 14f, Font.BOLD, BaseColor(76, 175, 80)) // green
+    val normalFont = Font(Font.FontFamily.HELVETICA, 11f)
+    val headerFont = Font(Font.FontFamily.HELVETICA, 12f, Font.BOLD, BaseColor.WHITE)
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentAnalyticsBinding.inflate(inflater, container, false)
@@ -62,18 +69,34 @@ class AnalyticsFragment : Fragment() {
         val calendar = Calendar.getInstance()
 
         DatePickerDialog(requireContext(), { _, year, month, day ->
-            val fromCal = Calendar.getInstance().apply { set(year, month, day, 0, 0, 0) }
+
+            val fromCal = Calendar.getInstance().apply {
+                set(year, month, day, 0, 0, 0)
+            }
             fromDate = fromCal.time
 
             DatePickerDialog(requireContext(), { _, y, m, d ->
-                val toCal = Calendar.getInstance().apply { set(y, m, d, 23, 59, 59) }
+
+                val toCal = Calendar.getInstance().apply {
+                    set(y, m, d, 23, 59, 59)
+                }
                 toDate = toCal.time
 
                 val start = com.google.firebase.Timestamp(fromDate!!)
                 val end = com.google.firebase.Timestamp(toDate!!)
 
-                loadAnalyticsData(start, end)
-                downloadAnalyticsAsPDF()   // Auto download after selecting range
+                // 🔥 FETCH DATA HERE (IMPORTANT)
+                db.collection("feedbacks")
+                    .whereGreaterThanOrEqualTo("timestamp", start)
+                    .whereLessThanOrEqualTo("timestamp", end)
+                    .get()
+                    .addOnSuccessListener { snapshot ->
+
+                        loadAnalyticsData(start, end) // still show charts
+
+                        // ✅ PASS REAL DATA TO PDF
+                        downloadAnalyticsAsPDF(snapshot.documents)
+                    }
 
             }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
 
@@ -136,69 +159,144 @@ class AnalyticsFragment : Fragment() {
         chart.invalidate()
     }
 
-    private fun downloadAnalyticsAsPDF() {
-        if (fromDate == null || toDate == null) {
-            Toast.makeText(requireContext(), "Please select date range first", Toast.LENGTH_SHORT).show()
-            return
-        }
+    private fun downloadAnalyticsAsPDF(documents: List<com.google.firebase.firestore.DocumentSnapshot>) {
 
-        db.collection("feedbacks")
-            .whereGreaterThanOrEqualTo("timestamp", com.google.firebase.Timestamp(fromDate!!))
-            .whereLessThanOrEqualTo("timestamp", com.google.firebase.Timestamp(toDate!!))
-            .get()
-            .addOnSuccessListener { documents ->
-                try {
-                    val fileName = "Analytics_Report_${SimpleDateFormat("ddMMyyyy").format(Date())}.pdf"
-                    val file = File(requireContext().getExternalFilesDir(null), fileName)
+        try {
+            val file = File(requireContext().getExternalFilesDir(null), "Analytics_Report.pdf")
 
-                    val document = Document()
-                    PdfWriter.getInstance(document, FileOutputStream(file))
-                    document.open()
+            val titleFont = Font(Font.FontFamily.HELVETICA, 18f, Font.BOLD, BaseColor(41, 3, 64))
+            val subTitleFont = Font(Font.FontFamily.HELVETICA, 12f, Font.BOLD, BaseColor.DARK_GRAY)
+            val normalFont = Font(Font.FontFamily.HELVETICA, 10f, Font.NORMAL)
+            val headerFont = Font(Font.FontFamily.HELVETICA, 11f, Font.BOLD, BaseColor.WHITE)
+            val dayFont = Font(Font.FontFamily.HELVETICA, 14f, Font.BOLD)
+            val mealFont = Font(Font.FontFamily.HELVETICA, 12f, Font.BOLD, BaseColor(143, 132, 16))
+            val document = Document()
+            PdfWriter.getInstance(document, FileOutputStream(file))
+            document.open()
 
-                    document.add(Paragraph("HOSTEL FOOD ANALYTICS REPORT"))
-                    document.add(Paragraph("From: ${SimpleDateFormat("dd MMM yyyy").format(fromDate!!)}"))
-                    document.add(Paragraph("To: ${SimpleDateFormat("dd MMM yyyy").format(toDate!!)}\n\n"))
+            val sdfDay = SimpleDateFormat("EEEE", Locale.getDefault())
+            val sdfDate = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
 
-                    val mealStats = mutableMapOf<String, Pair<Int, Double>>()
 
-                    for (doc in documents) {
-                        val mealType = doc.getString("mealType") ?: continue
-                        val ratings = doc.get("ratings") as? Map<String, String> ?: continue
+            val title = Paragraph("HOSTEL FOOD ANALYTICS REPORT\n\n", titleFont)
+            title.alignment = Element.ALIGN_CENTER
+            document.add(title)
 
-                        var totalScore = 0
-                        ratings.values.forEach { rating ->
-                            totalScore += when (rating.lowercase()) {
-                                "excellent" -> 4
-                                "good" -> 3
-                                "avg", "average" -> 2
-                                "poor" -> 1
-                                else -> 0
-                            }
-                        }
-                        val avg = if (ratings.isNotEmpty()) totalScore.toDouble() / ratings.size else 0.0
+            val fromTo = Paragraph(
+                "From: ${SimpleDateFormat("dd MMM yyyy").format(fromDate!!)}\n" +
+                        "To: ${SimpleDateFormat("dd MMM yyyy").format(toDate!!)}\n\n",
+                subTitleFont
+            )
+            fromTo.alignment = Element.ALIGN_CENTER
+            document.add(fromTo)
 
-                        val current = mealStats[mealType] ?: Pair(0, 0.0)
-                        mealStats[mealType] = Pair(current.first + 1, current.second + avg)
+            // 🔥 GROUP BY DATE → MEAL → ITEMS
+            val grouped = mutableMapOf<String, MutableMap<String, MutableMap<String, MutableList<Float>>>>()
+
+            for (doc in documents) {
+
+                val timestamp = doc.getTimestamp("timestamp")?.toDate() ?: continue
+                val dateKey = sdfDate.format(timestamp)
+                val dayName = sdfDay.format(timestamp)
+
+                val meal = doc.getString("mealType") ?: continue
+                val ratings = doc.get("ratings") as? Map<String, String> ?: continue
+
+                val fullDateKey = "$dayName ($dateKey)"
+
+                ratings.forEach { (item, ratingStr) ->
+
+                    val score = when (ratingStr.lowercase()) {
+                        "excellent" -> 4f
+                        "good" -> 3f
+                        "avg", "average" -> 2f
+                        "poor" -> 1f
+                        else -> 0f
                     }
 
-                    mealStats.forEach { (meal, data) ->
-                        val count = data.first
-                        val avg = data.second / count
-                        document.add(Paragraph("$meal"))
-                        document.add(Paragraph("Responses: $count"))
-                        document.add(Paragraph("Average Rating: %.2f / 4.0".format(avg)))
-                        document.add(Paragraph("----------------------------------------"))
-                    }
-
-                    document.add(Paragraph("\nGenerated on: ${Date()}"))
-                    document.close()
-
-                    Toast.makeText(requireContext(), "✅ PDF Generated Successfully!\n${file.absolutePath}", Toast.LENGTH_LONG).show()
-
-                } catch (e: Exception) {
-                    Toast.makeText(requireContext(), "PDF Error: ${e.message}", Toast.LENGTH_LONG).show()
+                    grouped
+                        .getOrPut(fullDateKey) { mutableMapOf() }
+                        .getOrPut(meal) { mutableMapOf() }
+                        .getOrPut(item) { mutableListOf() }
+                        .add(score)
                 }
             }
+
+            // 🔥 PRINT INTO PDF
+            grouped.forEach { (day, meals) ->
+
+                document.add(Paragraph("\n$day", dayFont))
+
+                val line = LineSeparator()
+                line.lineColor = BaseColor.LIGHT_GRAY
+                document.add(Chunk(line))
+
+                meals.forEach { (meal, items) ->
+
+                    document.add(Paragraph("\n$meal", mealFont))
+
+                    var totalResponses = 0
+
+                    // TABLE HEADER
+                    val table = PdfPTable(2)
+                    table.widthPercentage = 100f
+                    table.spacingBefore = 8f
+                    table.spacingAfter = 8f
+
+                    // Header cells
+                    val header1 = PdfPCell(Phrase("Item", headerFont))
+                    header1.backgroundColor = BaseColor(105, 0, 168) // Indigo
+                    header1.horizontalAlignment = Element.ALIGN_CENTER
+
+                    val header2 = PdfPCell(Phrase("Avg Rating", headerFont))
+                    header2.backgroundColor = BaseColor(105, 0, 168)
+                    header2.horizontalAlignment = Element.ALIGN_CENTER
+
+                    table.addCell(header1)
+                    table.addCell(header2)
+
+                    // Data rows
+                    items.forEach { (item, scores) ->
+
+                        val avg = if (scores.isNotEmpty()) scores.average() else 0.0
+                        //totalResponses += scores.size
+                        // ✅ count number of feedback documents (users)
+                        totalResponses = documents.count { doc ->
+                            val timestamp = doc.getTimestamp("timestamp")?.toDate() ?: return@count false
+                            val dateKey = sdfDate.format(timestamp)
+                            val dayName = sdfDay.format(timestamp)
+                            val fullDateKey = "$dayName ($dateKey)"
+
+                            val mealType = doc.getString("mealType") ?: return@count false
+
+                            fullDateKey == day && mealType == meal
+                        }
+
+                        val cell1 = PdfPCell(Phrase(item, normalFont))
+                        val cell2 = PdfPCell(Phrase("%.2f".format(avg), normalFont))
+
+                        cell1.paddingLeft = 6f
+                        cell2.paddingLeft = 6f
+
+                        table.addCell(cell1)
+                        table.addCell(cell2)
+                    }
+
+                    document.add(table)
+                    document.add(Paragraph("Responses: $totalResponses\n", normalFont))
+                }
+            }
+
+            document.close()
+
+            Toast.makeText(requireContext(),
+                "PDF saved:\n${file.absolutePath}",
+                Toast.LENGTH_LONG
+            ).show()
+
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "PDF error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun onDestroyView() {
