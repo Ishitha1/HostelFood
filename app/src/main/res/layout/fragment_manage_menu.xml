@@ -103,7 +103,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginBottom="16dp">
+            android:gravity="center"
+            android:layout_marginBottom="16dp"
+            android:weightSum="3">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnAddMode"
@@ -119,7 +121,7 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
-                android:text="Update Item"
+                android:text="Update Time"
                 android:layout_marginEnd="6dp"
                 style="@style/Widget.Material3.Button"/>
 

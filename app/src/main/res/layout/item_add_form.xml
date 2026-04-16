@@ -4,7 +4,7 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="16dp"
-    android:background="#F8F9FA">
+    android:background="#1F1B24">
 
     <TextView
         android:layout_width="wrap_content"
@@ -13,7 +13,7 @@
         android:textSize="18sp"
         android:textStyle="bold"
         android:layout_marginBottom="12dp"
-        android:textColor="@color/black"/>
+        android:textColor="#E0B0FF"/>
 
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
@@ -26,7 +26,7 @@
             android:layout_height="wrap_content"
             android:hint="Enter new food/drink item"
             android:inputType="text"
-            android:textColor="@color/black"/>
+            android:textColor="#E0B0FF"/>
     </com.google.android.material.textfield.TextInputLayout>
 
     <Button

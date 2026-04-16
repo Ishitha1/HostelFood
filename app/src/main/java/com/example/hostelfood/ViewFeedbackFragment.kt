@@ -1,5 +1,6 @@
 package com.example.hostelfood
 
+import android.app.DatePickerDialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,6 +9,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.hostelfood.databinding.FragmentViewFeedbackBinding
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import org.apache.poi.ss.usermodel.*
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
@@ -34,7 +36,7 @@ class ViewFeedbackFragment : Fragment() {
         loadFeedbacksGroupedByDay()
 
         binding.btnSaveExcel.setOnClickListener {
-            exportToExcel()
+            showDateRangePickerForExcel()
         }
 
         binding.btnClearOldData.setOnClickListener {
@@ -60,7 +62,7 @@ class ViewFeedbackFragment : Fragment() {
                     } ?: "Unknown"
                     val ratings = doc.get("ratings") as? Map<String, String> ?: emptyMap()
 
-                    if (comment.trim().isEmpty()) continue
+                    if (comment.isNullOrBlank()) continue
 
                     val item = FeedbackItem(rollNo, meal, day, ratings, comment, timestamp)
                     grouped.getOrPut(dateKey) { mutableListOf() }.add(item)
@@ -78,17 +80,22 @@ class ViewFeedbackFragment : Fragment() {
                 Toast.makeText(requireContext(), "Failed to load feedbacks", Toast.LENGTH_SHORT).show()
             }
     }
-
-   private fun exportToExcel() {
+/*
+    private fun exportToExcel(
+        start: com.google.firebase.Timestamp,
+        end: com.google.firebase.Timestamp
+    ) {
 
        val file = File(
            requireContext().getExternalFilesDir(null),
            "Weekly_Feedback.xlsx"
        )
 
-       db.collection("feedbacks")
-           .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.ASCENDING)
-           .get()
+        db.collection("feedbacks")
+            .whereGreaterThanOrEqualTo("timestamp", start)
+            .whereLessThanOrEqualTo("timestamp", end)
+            .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.ASCENDING)
+            .get()
            .addOnSuccessListener { documents ->
 
                val workbook = if (file.exists()) {
@@ -132,7 +139,7 @@ class ViewFeedbackFragment : Fragment() {
                    val day = doc.getString("day") ?: ""
                    val comment = doc.getString("comment") ?: ""
 
-                   if (comment.trim().isEmpty()) continue
+                   if (comment.isNullOrBlank()) continue
 
                    val key = "${timestamp?.seconds}_${roll}_$meal"
 
@@ -165,7 +172,7 @@ class ViewFeedbackFragment : Fragment() {
 
                    Toast.makeText(
                        requireContext(),
-                       "Excel Updated ✅ Added: $addedCount rows\n${file.absolutePath}",
+                       "Excel Updated Added: $addedCount rows",
                        Toast.LENGTH_LONG
                    ).show()
 
@@ -178,6 +185,128 @@ class ViewFeedbackFragment : Fragment() {
                }
            }
    }
+*/
+private fun exportToExcel(
+    start: com.google.firebase.Timestamp,
+    end: com.google.firebase.Timestamp
+) {
+
+    db.collection("feedbacks")
+        .whereGreaterThanOrEqualTo("timestamp", start)
+        .whereLessThanOrEqualTo("timestamp", end)
+        .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.ASCENDING)
+        .get()
+        .addOnSuccessListener { documents ->
+
+            try {
+
+                val file = File(
+                    requireContext().getExternalFilesDir(null),
+                    "Feedback_${SimpleDateFormat("ddMM").format(fromDate!!)}_to_${SimpleDateFormat("ddMM").format(toDate!!)}.xlsx"
+                )
+
+                // 🔥 ALWAYS CREATE NEW FILE
+                val workbook = XSSFWorkbook()
+                val sheet = workbook.createSheet("Feedback Report")
+
+                // ===== HEADER =====
+                val header = sheet.createRow(0)
+                arrayOf("Date", "Day", "Roll No", "Meal", "Comment")
+                    .forEachIndexed { i, text ->
+                        header.createCell(i).setCellValue(text)
+                    }
+
+                var rowNum = 1
+                var addedCount = 0
+
+                for (doc in documents) {
+
+                    val timestamp = doc.getTimestamp("timestamp")
+                    val roll = doc.getString("rollNumber") ?: ""
+                    val meal = doc.getString("mealType") ?: ""
+                    val day = doc.getString("day") ?: ""
+                    val comment = doc.getString("comment") ?: ""
+
+                    // ❌ Skip empty comments
+                    if (comment.isBlank()) continue
+
+                    val row = sheet.createRow(rowNum++)
+
+                    row.createCell(0).setCellValue(
+                        timestamp?.toDate()?.let {
+                            SimpleDateFormat("dd-MM-yyyy HH:mm", Locale.getDefault()).format(it)
+                        } ?: ""
+                    )
+
+                    row.createCell(1).setCellValue(day)
+                    row.createCell(2).setCellValue(roll)
+                    row.createCell(3).setCellValue(meal)
+                    row.createCell(4).setCellValue(comment)
+                    addedCount++
+                }
+
+                // Auto size columns
+                sheet.setColumnWidth(0, 5000)
+                sheet.setColumnWidth(1, 4000)
+                sheet.setColumnWidth(2, 4000)
+                sheet.setColumnWidth(3, 4000)
+                sheet.setColumnWidth(4, 8000)
+
+                FileOutputStream(file).use {
+                    workbook.write(it)
+                }
+                workbook.close()
+
+                Toast.makeText(
+                    requireContext(),
+                    "Excel Updated Added: $addedCount rows",
+                    Toast.LENGTH_LONG
+                ).show()
+
+            } catch (e: Exception) {
+                Toast.makeText(
+                    requireContext(),
+                    "Excel Error: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+}
+    private var fromDate: Date? = null
+    private var toDate: Date? = null
+
+    private fun showDateRangePickerForExcel() {
+        val cal = Calendar.getInstance()
+
+        DatePickerDialog(requireContext(), { _, year, month, day ->
+
+            val fromCal = Calendar.getInstance().apply {
+                set(year, month, day, 0, 0, 0)
+            }
+            fromDate = fromCal.time
+
+            DatePickerDialog(
+                requireContext(),
+                { _, y, m, d ->
+
+                    val toCal = Calendar.getInstance().apply {
+                        set(y, m, d, 23, 59, 59)
+                    }
+                    toDate = toCal.time
+
+                    val start = Timestamp(fromDate!!)
+                    val end = Timestamp(toDate!!)
+
+                    exportToExcel(start, end)
+
+                },
+                cal.get(Calendar.YEAR),
+                cal.get(Calendar.MONTH),
+                cal.get(Calendar.DAY_OF_MONTH)
+            ).show()
+
+        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+    }
     private fun deleteLast7DaysData() {
 
         val calendar = Calendar.getInstance()
@@ -205,7 +334,12 @@ class ViewFeedbackFragment : Fragment() {
                 val batch = db.batch()
 
                 for (doc in documents) {
-                    batch.delete(doc.reference)
+                    val ref = doc.reference
+
+                    batch.update(ref, mapOf(
+                        "comment" to ""
+                        //,"ratings" to emptyMap<String, String>()
+                    ))
                 }
 
                 batch.commit()

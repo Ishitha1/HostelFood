@@ -153,7 +153,9 @@ class AnalyticsFragment : Fragment() {
         chart.data = BarData(dataSet)
         chart.xAxis.valueFormatter = com.github.mikephil.charting.formatter.IndexAxisValueFormatter(labels)
         chart.xAxis.granularity = 1f
-        chart.xAxis.labelRotationAngle = -45f
+        //chart.xAxis.labelRotationAngle = -45f
+        chart.xAxis.textColor = android.graphics.Color.WHITE
+        chart.axisLeft.textColor = android.graphics.Color.WHITE
         chart.description.isEnabled = false
         chart.animateY(800)
         chart.invalidate()

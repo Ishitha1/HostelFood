@@ -35,7 +35,6 @@ class LoginActivity : AppCompatActivity() {
 
                         val name = document.getString("name") ?: "Student"
                         val role = document.getString("role") ?: "student"
-                        //val rollNo = document.id   // Important: document ID is the roll number
 
                         // 🔥 Expected Password = RollNo + Name
                         val expectedPassword = rollNo + name
@@ -57,11 +56,6 @@ class LoginActivity : AppCompatActivity() {
                             }
                         }
 
-                        // Pass user data
-                        /*intent.putExtra("rollNumber", rollNo)
-                        intent.putExtra("name", name)
-                        intent.putExtra("role", role)*/
-
                         startActivity(intent)
                         finish()
 
@@ -75,8 +69,17 @@ class LoginActivity : AppCompatActivity() {
         }
 
         binding.tvAdminLogin.setOnClickListener {
+
+            // Clear text
+            binding.etRollNumber.setText("")
+            binding.etPassword.setText("")
+
+            // ✅ Change hints properly
+            binding.tilRollNumber.hint = "Admin"
+            binding.tilPassword.hint = "Password"
+
+            // Optional: prefill admin
             binding.etRollNumber.setText("admin")
-            binding.etPassword.setText("adminAdmin") // admin + admin
         }
     }
 }

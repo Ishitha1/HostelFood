@@ -4,7 +4,7 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="16dp"
-    android:background="#F8F9FA">
+    android:background="#1F1B24">
 
     <TextView
         android:layout_width="wrap_content"
@@ -13,7 +13,7 @@
         android:textSize="18sp"
         android:textStyle="bold"
         android:layout_marginBottom="12dp"
-        android:textColor="@color/black"/>
+        android:textColor="#E0B0FF"/>
 
     <EditText
         android:id="@+id/etUpdateStart"
@@ -22,7 +22,7 @@
         android:hint="Start Time (HH:mm)"
         android:inputType="text"
         android:layout_marginBottom="10dp"
-        android:textColor="@color/black"/>
+        android:textColor="#E0B0FF"/>
 
     <EditText
         android:id="@+id/etUpdateEnd"
@@ -31,7 +31,7 @@
         android:hint="End Time (HH:mm)"
         android:inputType="text"
         android:layout_marginBottom="16dp"
-        android:textColor="@color/black"/>
+        android:textColor="#E0B0FF"/>
 
     <Button
         android:id="@+id/btnSaveUpdate"
